@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     free_daily_limit INT NOT NULL DEFAULT 5,
     promo_credits INT NOT NULL DEFAULT 0,
     paid_credits INT NOT NULL DEFAULT 0,
+    subscription_bonus_granted TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -22,6 +23,18 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     cost_type VARCHAR(16) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS pricing_plans (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(512),
+    currency VARCHAR(8) NOT NULL,
+    price_minor_units INT NOT NULL,
+    credits INT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS promo_codes (
@@ -45,6 +58,7 @@ CREATE TABLE IF NOT EXISTS promo_redemptions (
 CREATE TABLE IF NOT EXISTS payments (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
+    plan_id BIGINT NULL,
     provider VARCHAR(64) NOT NULL,
     provider_payment_charge_id VARCHAR(128),
     currency VARCHAR(8) NOT NULL,
@@ -53,6 +67,7 @@ CREATE TABLE IF NOT EXISTS payments (
     raw_payload TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (plan_id) REFERENCES pricing_plans(id)
 );
 `

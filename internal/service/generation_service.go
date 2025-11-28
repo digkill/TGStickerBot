@@ -7,13 +7,15 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/example/stickerbot/internal/config"
-	"github.com/example/stickerbot/internal/kie"
-	"github.com/example/stickerbot/internal/models"
-	"github.com/example/stickerbot/internal/repository"
+	"github.com/digkill/TGStickerBot/internal/config"
+	"github.com/digkill/TGStickerBot/internal/kie"
+	"github.com/digkill/TGStickerBot/internal/models"
+	"github.com/digkill/TGStickerBot/internal/repository"
 )
 
 var ErrCreditsRequired = errors.New("insufficient credits, payment required")
+
+const creditsPerGeneration = 5
 
 type GenerationService struct {
 	cfg         config.Config
@@ -60,21 +62,14 @@ func (s *GenerationService) Generate(ctx context.Context, user *models.User, req
 		req.Resolution = "1K"
 	}
 
-	todayCount, err := s.generations.CountForDay(ctx, user.ID, time.Now().UTC())
-	if err != nil {
-		return nil, err
-	}
-
-	cost := models.CostTypeFree
-	if todayCount >= user.FreeDailyLimit {
-		switch {
-		case user.PromoCredits > 0:
-			cost = models.CostTypePromo
-		case user.PaidCredits > 0:
-			cost = models.CostTypePaid
-		default:
-			return nil, ErrCreditsRequired
-		}
+	cost := models.CostTypePromo
+	switch {
+	case user.PromoCredits >= creditsPerGeneration:
+		cost = models.CostTypePromo
+	case user.PaidCredits >= creditsPerGeneration:
+		cost = models.CostTypePaid
+	default:
+		return nil, ErrCreditsRequired
 	}
 
 	opts := kie.GenerateOptions{
@@ -85,7 +80,16 @@ func (s *GenerationService) Generate(ctx context.Context, user *models.User, req
 		OutputFormat: req.OutputFormat,
 	}
 
+	start := time.Now()
+	s.log.Info("generation started",
+		"user_id", user.ID,
+		"model", req.Model,
+		"prompt_len", len(req.Prompt),
+		"references", len(req.InputURLs),
+	)
+
 	var image *kie.Image
+	var err error
 	switch req.Model {
 	case models.ModelFlux2:
 		image, err = s.kie.GenerateFlux2(ctx, opts)
@@ -95,6 +99,11 @@ func (s *GenerationService) Generate(ctx context.Context, user *models.User, req
 		return nil, fmt.Errorf("unsupported model: %s", req.Model)
 	}
 	if err != nil {
+		s.log.Error("generation request failed",
+			"user_id", user.ID,
+			"model", req.Model,
+			"err", err,
+		)
 		return nil, err
 	}
 
@@ -107,9 +116,7 @@ func (s *GenerationService) Generate(ctx context.Context, user *models.User, req
 		if !ok {
 			return nil, ErrCreditsRequired
 		}
-		if user.PromoCredits > 0 {
-			user.PromoCredits--
-		}
+		user.PromoCredits -= creditsPerGeneration
 	case models.CostTypePaid:
 		ok, consumeErr := s.users.ConsumePaidCredit(ctx, user.ID)
 		if consumeErr != nil {
@@ -118,14 +125,25 @@ func (s *GenerationService) Generate(ctx context.Context, user *models.User, req
 		if !ok {
 			return nil, ErrCreditsRequired
 		}
-		if user.PaidCredits > 0 {
-			user.PaidCredits--
-		}
+		user.PaidCredits -= creditsPerGeneration
 	}
 
 	if err := s.generations.Log(ctx, user.ID, req.Model, req.Prompt, cost); err != nil {
-		s.log.Error("failed to log generation", "err", err)
+		s.log.Error("failed to log generation",
+			"user_id", user.ID,
+			"model", req.Model,
+			"err", err,
+		)
 	}
+
+	s.log.Info("generation completed",
+		"user_id", user.ID,
+		"model", req.Model,
+		"cost_type", cost,
+		"duration_ms", time.Since(start).Milliseconds(),
+		"has_url", image.URL != "",
+		"bytes", len(image.Bytes),
+	)
 
 	return &GenerationResult{
 		Image:  image,

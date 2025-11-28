@@ -1,0 +1,17 @@
+[Unit]
+Description=StickerBot (Telegram bot + admin panel)
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+User=stickerbot
+WorkingDirectory=/opt/stickerbot
+EnvironmentFile=/etc/default/stickerbot
+ExecStart=/opt/stickerbot/stickerbot-bot
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGINT
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

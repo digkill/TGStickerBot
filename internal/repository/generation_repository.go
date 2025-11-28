@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/example/stickerbot/internal/models"
+	"github.com/digkill/TGStickerBot/internal/models"
 )
 
 type GenerationRepository struct {

@@ -3,7 +3,7 @@ package telegram
 import (
 	"sync"
 
-	"github.com/example/stickerbot/internal/models"
+	"github.com/digkill/TGStickerBot/internal/models"
 )
 
 type SessionState int
@@ -19,6 +19,7 @@ type Session struct {
 	SelectedModel models.ModelType
 	AspectRatio   string
 	Resolution    string
+	ReferenceURLs []string
 }
 
 type StateManager struct {
@@ -40,9 +41,10 @@ func (m *StateManager) Get(chatID int64) *Session {
 		return session
 	}
 	return &Session{
-		State:       StateIdle,
-		AspectRatio: "1:1",
-		Resolution:  "1K",
+		State:         StateIdle,
+		AspectRatio:   "1:1",
+		Resolution:    "1K",
+		ReferenceURLs: make([]string, 0),
 	}
 }
 
@@ -54,8 +56,17 @@ func (m *StateManager) Set(chatID int64, session *Session) {
 
 func (m *StateManager) Reset(chatID int64) {
 	m.Set(chatID, &Session{
-		State:       StateIdle,
-		AspectRatio: "1:1",
-		Resolution:  "1K",
+		State:         StateIdle,
+		AspectRatio:   "1:1",
+		Resolution:    "1K",
+		ReferenceURLs: make([]string, 0),
 	})
+}
+
+func (m *StateManager) ClearReferences(chatID int64) {
+	m.mu.Lock()
+	if session, ok := m.sessions[chatID]; ok {
+		session.ReferenceURLs = make([]string, 0)
+	}
+	m.mu.Unlock()
 }

@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/example/stickerbot/internal/repository"
+	"github.com/digkill/TGStickerBot/internal/models"
+	"github.com/digkill/TGStickerBot/internal/repository"
 )
 
 var ErrPromoInvalid = errors.New("promo code invalid")
@@ -75,4 +76,34 @@ func (s *PromoService) Apply(ctx context.Context, userID int64, code string, bon
 	}
 
 	return nil
+}
+
+func (s *PromoService) List(ctx context.Context) ([]models.PromoCode, error) {
+	return s.promos.List(ctx)
+}
+
+func (s *PromoService) Create(ctx context.Context, code string, maxUses int) (*models.PromoCode, error) {
+	promo := &models.PromoCode{
+		Code:    code,
+		MaxUses: maxUses,
+	}
+	return s.promos.Create(ctx, promo)
+}
+
+func (s *PromoService) Update(ctx context.Context, id int64, code string, maxUses int, uses int) (*models.PromoCode, error) {
+	promo := &models.PromoCode{
+		ID:      id,
+		Code:    code,
+		MaxUses: maxUses,
+		Uses:    uses,
+	}
+	return s.promos.Update(ctx, promo)
+}
+
+func (s *PromoService) Delete(ctx context.Context, id int64) error {
+	return s.promos.Delete(ctx, id)
+}
+
+func (s *PromoService) GetByID(ctx context.Context, id int64) (*models.PromoCode, error) {
+	return s.promos.GetByID(ctx, id)
 }

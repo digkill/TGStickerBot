@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/example/stickerbot/internal/models"
-	"github.com/example/stickerbot/internal/repository"
+	"github.com/digkill/TGStickerBot/internal/models"
+	"github.com/digkill/TGStickerBot/internal/repository"
 )
 
 type UserService struct {
@@ -16,12 +16,12 @@ func NewUserService(users *repository.UserRepository) *UserService {
 	return &UserService{users: users}
 }
 
-func (s *UserService) Ensure(ctx context.Context, telegramID int64, username, firstName, lastName string, freeLimit int) (*models.User, error) {
-	user, err := s.users.Ensure(ctx, telegramID, username, firstName, lastName, freeLimit)
+func (s *UserService) Ensure(ctx context.Context, telegramID int64, username, firstName, lastName string, freeLimit int) (*models.User, bool, error) {
+	user, created, err := s.users.Ensure(ctx, telegramID, username, firstName, lastName, freeLimit)
 	if err != nil {
-		return nil, fmt.Errorf("ensure user: %w", err)
+		return nil, false, fmt.Errorf("ensure user: %w", err)
 	}
-	return user, nil
+	return user, created, nil
 }
 
 func (s *UserService) UpdatePromoCredits(ctx context.Context, userID int64, delta int) error {
@@ -38,4 +38,8 @@ func (s *UserService) ListTelegramIDs(ctx context.Context) ([]int64, error) {
 		return nil, fmt.Errorf("list telegram ids: %w", err)
 	}
 	return ids, nil
+}
+
+func (s *UserService) SetSubscriptionBonusGranted(ctx context.Context, userID int64, granted bool) error {
+	return s.users.SetSubscriptionBonusGranted(ctx, userID, granted)
 }
